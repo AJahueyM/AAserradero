@@ -20,6 +20,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IApplicationDbContext>(serviceProvider => serviceProvider.GetRequiredService<AntiguoAserraderoDbContext>());
+        services.AddScoped<ICurrentStaffResolver, Identity.CurrentStaffResolver>();
 
         services.AddSingleton<ILiveUpdateBroadcaster, InMemoryLiveUpdateBroadcaster>();
         services.AddSingleton<ILiveUpdatePublisher>(serviceProvider => serviceProvider.GetRequiredService<ILiveUpdateBroadcaster>());
