@@ -1,11 +1,15 @@
 using AntiguoAserradero.Application.Auth;
 using AntiguoAserradero.Application.Users;
+using AntiguoAserradero.Domain.Errors;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
 using GraphUser = Microsoft.Graph.Models.User;
+using ValidationException = AntiguoAserradero.Domain.Errors.ValidationException;
 
 namespace AntiguoAserradero.Infrastructure.Identity;
 
@@ -67,7 +71,7 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
                 new ObjectIdentity
                 {
                     SignInType = "emailAddress",
-                    Issuer = _options.TenantId,
+                    Issuer = string.IsNullOrWhiteSpace(_options.LocalAccountIssuer) ? _options.TenantId : _options.LocalAccountIssuer,
                     IssuerAssignedId = email,
                 },
             ],
@@ -79,8 +83,17 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
             },
         };
 
-        var created = await _graph.Users.PostAsync(graphUser, cancellationToken: cancellationToken)
-            ?? throw new InvalidOperationException("Microsoft Graph did not return the created user.");
+        GraphUser created;
+        try
+        {
+            created = await _graph.Users.PostAsync(graphUser, cancellationToken: cancellationToken)
+                ?? throw new InvalidOperationException("Microsoft Graph did not return the created user.");
+        }
+        catch (ODataError error)
+        {
+            throw TranslateGraphError(error);
+        }
+
         if (string.IsNullOrWhiteSpace(created.Id))
         {
             throw new InvalidOperationException("Microsoft Graph returned a created user without an object id.");
@@ -103,7 +116,15 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
             patch.AccountEnabled = isActive.Value;
         }
 
-        await _graph.Users[externalId].PatchAsync(patch, cancellationToken: cancellationToken);
+        try
+        {
+            await _graph.Users[externalId].PatchAsync(patch, cancellationToken: cancellationToken);
+        }
+        catch (ODataError error)
+        {
+            throw TranslateGraphError(error);
+        }
+
         var updated = await GetRequiredGraphUserAsync(externalId, cancellationToken);
         var capabilities = await GetCapabilitiesAsync(externalId, cancellationToken);
         return ToDirectoryUser(updated, capabilities);
@@ -112,13 +133,14 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
     public async Task<IReadOnlyList<string>> GetCapabilitiesAsync(string externalId, CancellationToken cancellationToken = default)
     {
         var roleMap = await GetApiAppRoleMapAsync(cancellationToken);
-        var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
-        if (assignments?.Value is null)
+        // When listing users, a stale/removed directory object should not fail the whole request.
+        var assignments = await GetAppRoleAssignmentsOrEmptyAsync(externalId, cancellationToken);
+        if (assignments.Count == 0)
         {
             return [];
         }
 
-        var capabilities = assignments.Value
+        var capabilities = assignments
             .Where(assignment => assignment.AppRoleId.HasValue && roleMap.ContainsKey(assignment.AppRoleId.Value))
             .Select(assignment => roleMap[assignment.AppRoleId!.Value])
             .Distinct(StringComparer.Ordinal)
@@ -130,53 +152,97 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
 
     public async Task AssignCapabilityAsync(string externalId, string capability, CancellationToken cancellationToken = default)
     {
-        var (servicePrincipalId, roleId) = await ResolveAppRoleAsync(capability, cancellationToken);
-        var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
-        if (assignments?.Value?.Any(assignment => assignment.AppRoleId == roleId && assignment.ResourceId == servicePrincipalId) == true)
+        try
         {
-            return;
-        }
+            var (servicePrincipalId, roleId) = await ResolveAppRoleAsync(capability, cancellationToken);
+            var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
+            if (assignments?.Value?.Any(assignment => assignment.AppRoleId == roleId && assignment.ResourceId == servicePrincipalId) == true)
+            {
+                return;
+            }
 
-        await _graph.Users[externalId].AppRoleAssignments.PostAsync(new AppRoleAssignment
+            await _graph.Users[externalId].AppRoleAssignments.PostAsync(new AppRoleAssignment
+            {
+                PrincipalId = Guid.Parse(externalId),
+                ResourceId = servicePrincipalId,
+                AppRoleId = roleId,
+            }, cancellationToken: cancellationToken);
+        }
+        catch (ODataError error)
         {
-            PrincipalId = Guid.Parse(externalId),
-            ResourceId = servicePrincipalId,
-            AppRoleId = roleId,
-        }, cancellationToken: cancellationToken);
+            throw TranslateGraphError(error);
+        }
     }
 
     public async Task RemoveCapabilityAsync(string externalId, string capability, CancellationToken cancellationToken = default)
     {
-        var (servicePrincipalId, roleId) = await ResolveAppRoleAsync(capability, cancellationToken);
-        var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
-        var assignment = assignments?.Value?.FirstOrDefault(candidate =>
-            candidate.AppRoleId == roleId && candidate.ResourceId == servicePrincipalId);
-        if (assignment?.Id is null)
+        try
         {
-            return;
-        }
+            var (servicePrincipalId, roleId) = await ResolveAppRoleAsync(capability, cancellationToken);
+            var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
+            var assignment = assignments?.Value?.FirstOrDefault(candidate =>
+                candidate.AppRoleId == roleId && candidate.ResourceId == servicePrincipalId);
+            if (assignment?.Id is null)
+            {
+                return;
+            }
 
-        await _graph.Users[externalId].AppRoleAssignments[assignment.Id].DeleteAsync(cancellationToken: cancellationToken);
+            await _graph.Users[externalId].AppRoleAssignments[assignment.Id].DeleteAsync(cancellationToken: cancellationToken);
+        }
+        catch (ODataError error)
+        {
+            throw TranslateGraphError(error);
+        }
     }
 
     public async Task ResetPasswordAsync(string externalId, string newPassword, bool forceChangePasswordNextSignIn, CancellationToken cancellationToken = default)
     {
-        await _graph.Users[externalId].PatchAsync(new GraphUser
+        try
         {
-            PasswordProfile = new PasswordProfile
+            await _graph.Users[externalId].PatchAsync(new GraphUser
             {
-                Password = newPassword,
-                ForceChangePasswordNextSignIn = forceChangePasswordNextSignIn,
-            },
-        }, cancellationToken: cancellationToken);
+                PasswordProfile = new PasswordProfile
+                {
+                    Password = newPassword,
+                    ForceChangePasswordNextSignIn = forceChangePasswordNextSignIn,
+                },
+            }, cancellationToken: cancellationToken);
+        }
+        catch (ODataError error)
+        {
+            throw TranslateGraphError(error);
+        }
     }
 
     private static GraphServiceClient CreateGraphClient(GraphOptions options)
     {
-        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        TokenCredential credential;
+        if (!string.IsNullOrWhiteSpace(options.ProvisioningClientId))
         {
-            TenantId = options.TenantId,
-        });
+            // Secretless cross-tenant access: the container's managed identity is registered as a
+            // federated identity credential on the provisioning app in the target tenant. Exchange
+            // the managed-identity token (audience api://AzureADTokenExchange) for a Graph token as
+            // that app — no client secret or certificate involved.
+            var managedIdentityCredential = new ManagedIdentityCredential();
+            credential = new ClientAssertionCredential(
+                options.TenantId,
+                options.ProvisioningClientId,
+                async cancellationToken =>
+                {
+                    var token = await managedIdentityCredential.GetTokenAsync(
+                        new TokenRequestContext(["api://AzureADTokenExchange/.default"]),
+                        cancellationToken);
+                    return token.Token;
+                });
+        }
+        else
+        {
+            credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                TenantId = options.TenantId,
+            });
+        }
+
         return new GraphServiceClient(credential, GraphScopes);
     }
 
@@ -198,8 +264,37 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
     private async Task<GraphUser> GetRequiredGraphUserAsync(string externalId, CancellationToken cancellationToken)
     {
         var user = await GetGraphUserOrNullAsync(externalId, cancellationToken);
-        return user ?? throw new InvalidOperationException($"Microsoft Graph user '{externalId}' was not found after update.");
+        return user ?? throw new NotFoundException("StaffDirectory.UserNotFound", $"The staff user '{externalId}' was not found in the directory.");
     }
+
+    private async Task<IReadOnlyList<AppRoleAssignment>> GetAppRoleAssignmentsOrEmptyAsync(string externalId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var assignments = await _graph.Users[externalId].AppRoleAssignments.GetAsync(cancellationToken: cancellationToken);
+            return assignments?.Value ?? [];
+        }
+        catch (ODataError error) when (error.ResponseStatusCode == 404)
+        {
+            return [];
+        }
+        catch (ODataError error)
+        {
+            throw TranslateGraphError(error);
+        }
+    }
+
+    // Translate Microsoft Graph errors into typed domain errors so the API returns consistent,
+    // meaningful status codes. Unexpected (e.g. 5xx) errors are rethrown as-is so they surface as
+    // genuine 500s and are captured by Application Insights.
+    private static Exception TranslateGraphError(ODataError error) => error.ResponseStatusCode switch
+    {
+        400 => new ValidationException("StaffDirectory.InvalidRequest", string.IsNullOrWhiteSpace(error.Message) ? "The directory request was invalid." : error.Message),
+        403 => new ForbiddenException("StaffDirectory.Forbidden", "The service is not permitted to perform this directory operation. Ensure the managed identity has admin-consented Microsoft Graph permissions (User.ReadWrite.All, AppRoleAssignment.ReadWrite.All, Directory.Read.All)."),
+        404 => new NotFoundException("StaffDirectory.NotFound", "The requested directory resource was not found."),
+        409 => new ConflictException("StaffDirectory.Conflict", "The directory operation conflicts with the current state of the resource."),
+        _ => error,
+    };
 
     private async Task<(Guid ServicePrincipalId, Guid RoleId)> ResolveAppRoleAsync(string capability, CancellationToken cancellationToken)
     {

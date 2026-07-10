@@ -2,6 +2,37 @@
 
 This folder contains the identity runbook and automation for **Antiguo Aserradero Reserva**. The target tenant is Microsoft Entra External ID (CIAM). Staff use administrator-provisioned local email/password accounts only; do not enable consumer Microsoft accounts or self-service sign-up for staff.
 
+## As-deployed reference (dev)
+
+The dev environment was provisioned live with these identifiers (safe to record — none are secrets):
+
+| Item | Value |
+|------|-------|
+| CIAM tenant | `aareservaciam.onmicrosoft.com` — id `eed3a04c-ae86-4e2b-b179-68f68d9b1d1a` |
+| MSAL authority | `https://aareservaciam.ciamlogin.com/eed3a04c-ae86-4e2b-b179-68f68d9b1d1a` |
+| API app (audience) | `2c54506d-2105-4ad7-a6bd-c206f645b1a1` (`api://…/access_as_user`, roles `Catalog.Manage` + `Reservations.Manage`) |
+| SPA app (client) | `2a929590-b96a-4e1f-b8c8-4d87f0e4ff68` (redirect: dev SWA + `http://localhost:5173`) |
+| Provisioning app | `4616047b-edfb-4442-88f7-80b83ee95af2` — used by the backend for Microsoft Graph |
+| Sign-in user flow | `StaffSignIn` (Email + password, self-service sign-up disabled), linked to the SPA app |
+
+### Secretless backend user provisioning (Workload Identity Federation)
+
+The backend creates/manages staff in the CIAM tenant via Microsoft Graph **without any client secret**:
+
+1. The **provisioning app** (above) in the CIAM tenant has a **federated identity credential** whose
+   `issuer` is the workforce tenant's STS (`https://login.microsoftonline.com/<workforce-tenant>/v2.0`),
+   `subject` is the **Container App system-assigned managed identity object id**, and `audience` is
+   `api://AzureADTokenExchange`.
+2. The provisioning app's service principal is granted admin-consented Graph app permissions
+   (`User.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`, `Directory.Read.All`).
+3. At runtime the backend uses `ClientAssertionCredential` (client id = provisioning app), where the
+   assertion is a managed-identity token for `api://AzureADTokenExchange`. Cross-tenant MI federation
+   is supported; same-tenant MI→app federation is not (AADSTS700236).
+
+Backend config (Container App env): `Graph__TenantId` (CIAM tenant), `Graph__ApiClientAppId` (API app),
+`Graph__ProvisioningClientId` (provisioning app), `Graph__LocalAccountIssuer` (`<tenant>.onmicrosoft.com`).
+When `Graph__ProvisioningClientId` is empty (local/same-tenant), the code falls back to `DefaultAzureCredential`.
+
 ## Prerequisites
 
 - Windows PowerShell and Azure CLI 2.88+.

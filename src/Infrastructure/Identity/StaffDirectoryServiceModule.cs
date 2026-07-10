@@ -14,6 +14,8 @@ public sealed class StaffDirectoryServiceModule : IServiceModule
             {
                 options.TenantId = configuration[$"{GraphOptions.SectionName}:TenantId"] ?? string.Empty;
                 options.ApiClientAppId = configuration[$"{GraphOptions.SectionName}:ApiClientAppId"] ?? string.Empty;
+                options.ProvisioningClientId = configuration[$"{GraphOptions.SectionName}:ProvisioningClientId"] ?? string.Empty;
+                options.LocalAccountIssuer = configuration[$"{GraphOptions.SectionName}:LocalAccountIssuer"] ?? string.Empty;
             })
             .ValidateDataAnnotations();
         services.AddScoped<IStaffDirectory, MicrosoftGraphStaffDirectory>();

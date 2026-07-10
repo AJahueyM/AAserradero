@@ -16,10 +16,23 @@ function requiredEnv(name: keyof ImportMetaEnv): string {
 export const apiScope = requiredEnv('VITE_API_SCOPE');
 export const loginRequest = { scopes: [apiScope] };
 
+const authority = requiredEnv('VITE_AAD_AUTHORITY');
+
+// CIAM / External ID authorities (*.ciamlogin.com) are not part of the public cloud list, so MSAL
+// requires the authority host to be declared as a known authority.
+function knownAuthorityHost(authorityUrl: string): string[] {
+  try {
+    return [new URL(authorityUrl).host];
+  } catch {
+    return [];
+  }
+}
+
 export const msalConfig: Configuration = {
   auth: {
     clientId: requiredEnv('VITE_AAD_CLIENT_ID'),
-    authority: requiredEnv('VITE_AAD_AUTHORITY'),
+    authority,
+    knownAuthorities: knownAuthorityHost(authority),
     redirectUri: requiredEnv('VITE_AAD_REDIRECT_URI'),
     postLogoutRedirectUri: requiredEnv('VITE_AAD_REDIRECT_URI'),
   },

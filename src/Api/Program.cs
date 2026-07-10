@@ -37,6 +37,17 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 
 builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(30));
 builder.Services.AddValidatedOptions(builder.Configuration);
+
+// Application Insights SDK: auto-collects requests, dependencies, and exceptions. Reads the
+// connection string from ApplicationInsights:ConnectionString / APPLICATIONINSIGHTS_CONNECTION_STRING.
+var appInsightsConnectionString = builder.Configuration.GetSection(ApplicationInsightsOptions.SectionName).GetValue<string>("ConnectionString")
+    ?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(appInsightsConnectionString) &&
+    !appInsightsConnectionString.Contains("00000000-0000-0000-0000-000000000000", StringComparison.Ordinal))
+{
+    builder.Services.AddApplicationInsightsTelemetry(options => options.ConnectionString = appInsightsConnectionString);
+}
+
 builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
 builder.Services.AddHttpContextAccessor();
