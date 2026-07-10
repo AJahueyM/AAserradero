@@ -3,6 +3,9 @@ targetScope = 'resourceGroup'
 @description('Azure region for all regional resources.')
 param location string = resourceGroup().location
 
+@description('Azure region for the SQL logical server (some regions restrict new SQL server creation).')
+param sqlLocation string = location
+
 @description('Deployment environment name, for example dev, test, or prod.')
 param environmentName string = 'dev'
 
@@ -124,7 +127,7 @@ module sql 'modules/sql.bicep' = {
   params: {
     serverName: sqlServerName
     databaseName: sqlDatabaseName
-    location: location
+    location: sqlLocation
     aadAdminLogin: aadAdminLogin
     aadAdminObjectId: aadAdminObjectId
     aadAdminPrincipalType: aadAdminPrincipalType
