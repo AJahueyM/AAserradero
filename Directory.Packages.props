@@ -1,0 +1,20 @@
+<Project>
+  <!-- Central Package Management: versions are declared here, referenced without versions in csproj. -->
+  <PropertyGroup>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- ASP.NET Core / API -->
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+    <!-- Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.2 brings Microsoft.OpenApi 2.0.0,
+         which has advisory GHSA-v5pm-xwqc-g5wc. Pin to the patched latest 2.x. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Test tooling -->
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,43 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+publish/
+*.nupkg
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coverage.xml
+
+# EF Core
+# (migrations are kept; nothing to ignore)
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+appsettings.*.Local.json
+*.local.json
+
+# Azure / IaC
+.azure/
+*.azurewebsites.net.PublishSettings
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
