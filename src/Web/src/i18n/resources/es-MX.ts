@@ -1,0 +1,60 @@
+export const esMx = {
+  translation: {
+    app: {
+      name: 'Antiguo Aserradero Reserva',
+      shortName: 'Reserva',
+      skipToContent: 'Saltar al contenido',
+    },
+    auth: {
+      signInTitle: 'Iniciar sesión',
+      signInSubtitle: 'Acceso para personal autorizado de reservaciones y administración.',
+      signInButton: 'Entrar con Microsoft',
+      signingIn: 'Redirigiendo a Microsoft...',
+      loading: 'Validando sesión...',
+      loadingProfile: 'Cargando perfil...',
+      signedInAs: 'Sesión de {{name}}',
+      signOut: 'Cerrar sesión',
+      invalidCredentials: 'Las credenciales no son válidas. Revisa tu cuenta e intenta de nuevo.',
+      authUnavailable: 'No se puede contactar el servicio de autenticación. Intenta más tarde.',
+      unknownAuthError: 'No fue posible iniciar sesión. Intenta nuevamente.',
+      profileError: 'No se pudo cargar tu perfil. Intenta actualizar la página.',
+    },
+    nav: {
+      open: 'Abrir navegación',
+      close: 'Cerrar navegación',
+      reservations: 'Reservaciones',
+      checkInOut: 'Check In/Out',
+      catalog: 'Catálogo',
+      reports: 'Reportes',
+      administration: 'Administración',
+      regulation: 'Reglamento',
+    },
+    routes: {
+      reservationsDescription: 'Calendario y administración de reservaciones se agregarán aquí.',
+      checkInOutDescription: 'Flujos de entrada y salida se agregarán aquí.',
+      catalogDescription: 'Administración de cabañas, habitaciones y tarifas se agregará aquí.',
+      reportsDescription: 'Reportes operativos y exportaciones se agregarán aquí.',
+      administrationDescription: 'Administración del sistema se agregará aquí.',
+      placeholderTitle: '{{section}} listo para construir',
+      placeholderBody:
+        'Esta ruta ya está protegida, enlazada y lista para que un agente de feature agregue la pantalla final.',
+      notFoundTitle: 'Página no encontrada',
+      notFoundBody: 'La ruta solicitada no existe.',
+      goHome: 'Ir a reservaciones',
+    },
+    regulation: {
+      title: 'Reglamento y políticas',
+      intro:
+        'Consulta las políticas operativas del Antiguo Aserradero. Esta sección es informativa y está disponible para todo el personal autenticado.',
+      availability: 'Las políticas completas serán publicadas por el equipo operativo.',
+    },
+    ui: {
+      confirmTitle: 'Confirmar acción',
+      confirmDescription: '¿Deseas continuar?',
+      confirm: 'Confirmar',
+      cancel: 'Cancelar',
+      close: 'Cerrar',
+      loading: 'Procesando...',
+    },
+  },
+} as const;
