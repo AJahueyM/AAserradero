@@ -42,4 +42,4 @@ Thumbs.db
 *.swp
 .idea/
 
-infra/**.json
+./infra/**.json
