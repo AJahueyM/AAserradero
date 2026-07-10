@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace AntiguoAserradero.Application.Reservations;
 
-public sealed class CreateReservationRequestValidator : AbstractValidator<CreateReservationRequest>
+public sealed class UpdateReservationRequestValidator : AbstractValidator<UpdateReservationRequest>
 {
-    public CreateReservationRequestValidator()
+    public UpdateReservationRequestValidator()
     {
         RuleFor(request => request.RoomId).GreaterThan(0);
         RuleFor(request => request.ClientId).GreaterThan(0);
