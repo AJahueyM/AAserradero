@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Domain\AntiguoAserradero.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\AntiguoAserradero.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
