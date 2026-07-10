@@ -19,6 +19,18 @@ export async function apiPost<TRequest, TResponse>(
   return apiRequest<TResponse>(path, { ...init, method: 'POST', body: JSON.stringify(body) });
 }
 
+export async function apiPut<TRequest, TResponse>(
+  path: string,
+  body: TRequest,
+  init?: Omit<RequestInit, 'method' | 'body'>,
+) {
+  return apiRequest<TResponse>(path, { ...init, method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function apiDelete<TResponse = void>(path: string, init?: Omit<RequestInit, 'method'>) {
+  return apiRequest<TResponse>(path, { ...init, method: 'DELETE' });
+}
+
 export async function apiRequest<TResponse>(
   path: string,
   init: RequestInit = {},

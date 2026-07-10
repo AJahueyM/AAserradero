@@ -5,9 +5,32 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import GavelIcon from '@mui/icons-material/Gavel';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { type SvgIconComponent } from '@mui/icons-material';
+import { Box, CircularProgress } from '@mui/material';
+import { Suspense, lazy } from 'react';
 import { type Capability } from '../auth/capabilities';
 import { RegulationPage } from '../layout/RegulationPage';
-import { FeaturePlaceholder } from './FeaturePlaceholder';
+
+// Feature pages are code-split and lazy-loaded. Each feature agent implements the default-export
+// page at the path below; this registry file is NOT edited by feature agents.
+const ReservationsPage = lazy(() => import('./reservations/ReservationsPage'));
+const CheckInOutPage = lazy(() => import('./checkinout/CheckInOutPage'));
+const CatalogPage = lazy(() => import('./catalog/CatalogPage'));
+const ReportsPage = lazy(() => import('./reports/ReportsPage'));
+const AdministrationPage = lazy(() => import('./administration/AdministrationPage'));
+
+function withSuspense(node: React.ReactNode): React.ReactNode {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
+          <CircularProgress />
+        </Box>
+      }
+    >
+      {node}
+    </Suspense>
+  );
+}
 
 export type CapabilityRequirement =
   | { mode: 'always' }
@@ -38,12 +61,7 @@ export const featureRoutes: FeatureRoute[] = [
     descriptionKey: 'routes.reservationsDescription',
     icon: CalendarMonthIcon,
     requirement: { mode: 'always' },
-    element: (
-      <FeaturePlaceholder
-        labelKey="nav.reservations"
-        descriptionKey="routes.reservationsDescription"
-      />
-    ),
+    element: withSuspense(<ReservationsPage />),
   },
   {
     id: 'check-in-out',
@@ -52,9 +70,7 @@ export const featureRoutes: FeatureRoute[] = [
     descriptionKey: 'routes.checkInOutDescription',
     icon: AssignmentTurnedInIcon,
     requirement: requireAllCapabilities('Reservations.Manage'),
-    element: (
-      <FeaturePlaceholder labelKey="nav.checkInOut" descriptionKey="routes.checkInOutDescription" />
-    ),
+    element: withSuspense(<CheckInOutPage />),
   },
   {
     id: 'catalog',
@@ -63,9 +79,7 @@ export const featureRoutes: FeatureRoute[] = [
     descriptionKey: 'routes.catalogDescription',
     icon: Inventory2Icon,
     requirement: requireAllCapabilities('Catalog.Manage'),
-    element: (
-      <FeaturePlaceholder labelKey="nav.catalog" descriptionKey="routes.catalogDescription" />
-    ),
+    element: withSuspense(<CatalogPage />),
   },
   {
     id: 'reports',
@@ -74,9 +88,7 @@ export const featureRoutes: FeatureRoute[] = [
     descriptionKey: 'routes.reportsDescription',
     icon: BarChartIcon,
     requirement: bothManagementCapabilities,
-    element: (
-      <FeaturePlaceholder labelKey="nav.reports" descriptionKey="routes.reportsDescription" />
-    ),
+    element: withSuspense(<ReportsPage />),
   },
   {
     id: 'administration',
@@ -85,12 +97,7 @@ export const featureRoutes: FeatureRoute[] = [
     descriptionKey: 'routes.administrationDescription',
     icon: AdminPanelSettingsIcon,
     requirement: bothManagementCapabilities,
-    element: (
-      <FeaturePlaceholder
-        labelKey="nav.administration"
-        descriptionKey="routes.administrationDescription"
-      />
-    ),
+    element: withSuspense(<AdministrationPage />),
   },
   {
     id: 'regulation',
