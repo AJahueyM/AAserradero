@@ -47,6 +47,9 @@ param staticWebAppLocation string = 'eastus2'
 @description('Azure region for the SQL logical server (falls back from the main region when SQL is capacity-restricted there).')
 param sqlLocation string = 'westus3'
 
+@description('When true (first-ever deployment), the container app is created without an ACR connection so its managed identity can be granted AcrPull before pulling the real image.')
+param initialDeployment bool = false
+
 param acsSenderAddress string = 'DoNotReply@<azure-managed-domain>'
 param additionalAllowedOrigins array = []
 
@@ -79,6 +82,7 @@ module resources 'main.bicep' = {
     graphApiClientAppId: graphApiClientAppId
     staticWebAppLocation: staticWebAppLocation
     sqlLocation: sqlLocation
+    initialDeployment: initialDeployment
     acsSenderAddress: acsSenderAddress
     additionalAllowedOrigins: additionalAllowedOrigins
   }

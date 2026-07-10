@@ -41,5 +41,3 @@ appsettings.*.Local.json
 Thumbs.db
 *.swp
 .idea/
-
-./infra/**.json

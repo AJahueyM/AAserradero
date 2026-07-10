@@ -25,10 +25,15 @@ param acsSenderAddress string
 
 @description('Public origin(s) allowed by CORS and used as the frontend base URL (the Static Web App URL).')
 param allowedOrigins array
+
+@description('When true (first-ever deployment), the ACR registry connection is NOT configured so the container app can be created with a public image before its managed identity is granted AcrPull. Set false on subsequent deployments to pull the app image from ACR.')
+param initialDeployment bool = false
 param tags object
 
 var sqlConnectionString = 'Server=tcp:${sqlServerFqdn},1433;Database=${sqlDatabaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
 var frontendBaseUrl = length(allowedOrigins) > 0 ? allowedOrigins[0] : 'https://localhost'
+// The ACS endpoint output is a bare host name; the app's AcsOptions.Endpoint requires an absolute URL.
+var acsEndpointUrl = startsWith(acsEndpoint, 'http') ? acsEndpoint : 'https://${acsEndpoint}'
 
 // Base environment variables. Names use "__" which the .NET configuration provider maps to ":".
 var baseEnv = [
@@ -74,7 +79,7 @@ var baseEnv = [
   }
   {
     name: 'Acs__Endpoint'
-    value: acsEndpoint
+    value: acsEndpointUrl
   }
   {
     name: 'Acs__SenderAddress'
@@ -91,6 +96,16 @@ var originEnv = [for (origin, index) in allowedOrigins: {
   name: 'App__AllowedOrigins__${index}'
   value: origin
 }]
+
+// On the first deployment the managed identity does not yet have AcrPull, so the registry
+// connection must be omitted (the app runs a public placeholder image). Later deployments
+// configure the ACR registry and pull the real application image via the managed identity.
+var registries = initialDeployment ? [] : [
+  {
+    server: acrLoginServer
+    identity: 'system'
+  }
+]
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -109,12 +124,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'auto'
         allowInsecure: false
       }
-      registries: [
-        {
-          server: acrLoginServer
-          identity: 'system'
-        }
-      ]
+      registries: registries
     }
     template: {
       containers: [

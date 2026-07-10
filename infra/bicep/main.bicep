@@ -6,6 +6,9 @@ param location string = resourceGroup().location
 @description('Azure region for the SQL logical server (some regions restrict new SQL server creation).')
 param sqlLocation string = location
 
+@description('When true (first-ever deployment), the container app is created without an ACR connection so its managed identity can be granted AcrPull before pulling the real image.')
+param initialDeployment bool = false
+
 @description('Deployment environment name, for example dev, test, or prod.')
 param environmentName string = 'dev'
 
@@ -175,6 +178,7 @@ module containerApp 'modules/containerApp.bicep' = {
     acsEndpoint: communication.outputs.communicationServiceEndpoint
     acsSenderAddress: acsSenderAddress
     allowedOrigins: concat([ 'https://${staticWebApp.outputs.defaultHostname}' ], additionalAllowedOrigins)
+    initialDeployment: initialDeployment
     tags: tags
   }
 }
