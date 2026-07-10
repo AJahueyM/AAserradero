@@ -10,13 +10,87 @@ param appInsightsConnectionString string
 param azureAdInstance string
 param azureAdTenantId string
 param azureAdClientId string
-param azureAdDomain string
+
+@description('API app audience (e.g. api://<api-client-id>) used to validate access tokens.')
+param azureAdAudience string
+
+@description('Microsoft Entra tenant used by Microsoft Graph for staff provisioning.')
+param graphTenantId string
+
+@description('Application (client) ID of the API app registration, used to resolve app roles in Graph.')
+param graphApiClientAppId string
+
 param acsEndpoint string
 param acsSenderAddress string
-param appAllowedOrigins string
+
+@description('Public origin(s) allowed by CORS and used as the frontend base URL (the Static Web App URL).')
+param allowedOrigins array
 param tags object
 
 var sqlConnectionString = 'Server=tcp:${sqlServerFqdn},1433;Database=${sqlDatabaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+var frontendBaseUrl = length(allowedOrigins) > 0 ? allowedOrigins[0] : 'https://localhost'
+
+// Base environment variables. Names use "__" which the .NET configuration provider maps to ":".
+var baseEnv = [
+  {
+    name: 'ASPNETCORE_ENVIRONMENT'
+    value: aspnetcoreEnvironment
+  }
+  {
+    name: 'ConnectionStrings__Default'
+    value: sqlConnectionString
+  }
+  {
+    name: 'ApplicationInsights__ConnectionString'
+    value: appInsightsConnectionString
+  }
+  {
+    name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+    value: appInsightsConnectionString
+  }
+  {
+    name: 'AzureAd__Instance'
+    value: azureAdInstance
+  }
+  {
+    name: 'AzureAd__TenantId'
+    value: azureAdTenantId
+  }
+  {
+    name: 'AzureAd__ClientId'
+    value: azureAdClientId
+  }
+  {
+    name: 'AzureAd__Audience'
+    value: azureAdAudience
+  }
+  {
+    name: 'Graph__TenantId'
+    value: graphTenantId
+  }
+  {
+    name: 'Graph__ApiClientAppId'
+    value: graphApiClientAppId
+  }
+  {
+    name: 'Acs__Endpoint'
+    value: acsEndpoint
+  }
+  {
+    name: 'Acs__SenderAddress'
+    value: acsSenderAddress
+  }
+  {
+    name: 'App__FrontendBaseUrl'
+    value: frontendBaseUrl
+  }
+]
+
+// CORS allow-list binds as an array via indexed keys App__AllowedOrigins__0, __1, ...
+var originEnv = [for (origin, index) in allowedOrigins: {
+  name: 'App__AllowedOrigins__${index}'
+  value: origin
+}]
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -47,46 +121,29 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'antiguoaserradero'
           image: image
-          env: [
+          env: concat(baseEnv, originEnv)
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          probes: [
             {
-              name: 'ASPNETCORE_ENVIRONMENT'
-              value: aspnetcoreEnvironment
+              type: 'Liveness'
+              httpGet: {
+                path: '/health'
+                port: 8080
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 30
             }
             {
-              name: 'ConnectionStrings__DefaultConnection'
-              value: sqlConnectionString
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionString
-            }
-            {
-              name: 'AzureAd__Instance'
-              value: azureAdInstance
-            }
-            {
-              name: 'AzureAd__TenantId'
-              value: azureAdTenantId
-            }
-            {
-              name: 'AzureAd__ClientId'
-              value: azureAdClientId
-            }
-            {
-              name: 'AzureAd__Domain'
-              value: azureAdDomain
-            }
-            {
-              name: 'Acs__Endpoint'
-              value: acsEndpoint
-            }
-            {
-              name: 'Acs__SenderAddress'
-              value: acsSenderAddress
-            }
-            {
-              name: 'App__AllowedOrigins'
-              value: appAllowedOrigins
+              type: 'Readiness'
+              httpGet: {
+                path: '/health'
+                port: 8080
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 15
             }
           ]
         }

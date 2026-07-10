@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.44.1.10279",
-      "templateHash": "13347471011027364169"
+      "templateHash": "11387468817864905268"
     }
   },
   "parameters": {
@@ -96,18 +96,39 @@
         "description": "Application/client ID used by the app authentication configuration."
       }
     },
-    "azureAdDomain": {
+    "azureAdAudience": {
       "type": "string",
-      "defaultValue": "contoso.onmicrosoft.com",
+      "defaultValue": "api://00000000-0000-0000-0000-000000000000",
       "metadata": {
-        "description": "Primary Microsoft Entra domain used by the app authentication configuration."
+        "description": "API app audience (api://<api-client-id>) used to validate access tokens."
       }
     },
-    "appAllowedOrigins": {
+    "graphTenantId": {
       "type": "string",
-      "defaultValue": "https://example.com",
+      "defaultValue": "[subscription().tenantId]",
       "metadata": {
-        "description": "Allowed CORS/origin list consumed by the application, for example https://www.example.com."
+        "description": "Microsoft Entra tenant used by Microsoft Graph for staff provisioning."
+      }
+    },
+    "graphApiClientAppId": {
+      "type": "string",
+      "defaultValue": "00000000-0000-0000-0000-000000000000",
+      "metadata": {
+        "description": "Application (client) ID of the API app registration, used to resolve Microsoft Graph app roles."
+      }
+    },
+    "staticWebAppLocation": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "metadata": {
+        "description": "Region for the Static Web App (Free SKU supports a limited set, e.g. eastus2, westus2, centralus, westeurope, eastasia)."
+      }
+    },
+    "additionalAllowedOrigins": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Optional additional CORS origins. The Static Web App URL is always included automatically."
       }
     },
     "acsSenderAddress": {
@@ -135,7 +156,8 @@
     "sqlServerName": "[take(format('{0}-sql', variables('resourceBaseName')), 63)]",
     "sqlDatabaseName": "antiguoaserradero",
     "communicationServiceName": "[take(format('{0}-acs', variables('resourceBaseName')), 63)]",
-    "emailServiceName": "[take(format('{0}-email', variables('resourceBaseName')), 63)]"
+    "emailServiceName": "[take(format('{0}-email', variables('resourceBaseName')), 63)]",
+    "staticWebAppName": "[take(format('{0}-swa', variables('resourceBaseName')), 60)]"
   },
   "resources": [
     {
@@ -712,6 +734,83 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "staticWebApp",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('staticWebAppName')]"
+          },
+          "location": {
+            "value": "[parameters('staticWebAppLocation')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.44.1.10279",
+              "templateHash": "12038172223228610888"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Static Web App name (globally scoped within the subscription/region)."
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Region for the Static Web App. Free SKU is available in a limited set of regions, e.g. eastus2, westus2, centralus, westeurope, eastasia."
+              }
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2023-12-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Free",
+                "tier": "Free"
+              },
+              "properties": {
+                "allowConfigFileUpdates": true,
+                "stagingEnvironmentPolicy": "Enabled"
+              }
+            }
+          ],
+          "outputs": {
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "defaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('name')), '2023-12-01').defaultHostname]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "containerApp",
       "properties": {
         "expressionEvaluationOptions": {
@@ -755,8 +854,14 @@
           "azureAdClientId": {
             "value": "[parameters('azureAdClientId')]"
           },
-          "azureAdDomain": {
-            "value": "[parameters('azureAdDomain')]"
+          "azureAdAudience": {
+            "value": "[parameters('azureAdAudience')]"
+          },
+          "graphTenantId": {
+            "value": "[parameters('graphTenantId')]"
+          },
+          "graphApiClientAppId": {
+            "value": "[parameters('graphApiClientAppId')]"
           },
           "acsEndpoint": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'communication'), '2025-04-01').outputs.communicationServiceEndpoint.value]"
@@ -764,8 +869,8 @@
           "acsSenderAddress": {
             "value": "[parameters('acsSenderAddress')]"
           },
-          "appAllowedOrigins": {
-            "value": "[parameters('appAllowedOrigins')]"
+          "allowedOrigins": {
+            "value": "[concat(createArray(format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'staticWebApp'), '2025-04-01').outputs.defaultHostname.value)), parameters('additionalAllowedOrigins'))]"
           },
           "tags": {
             "value": "[variables('tags')]"
@@ -778,7 +883,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.44.1.10279",
-              "templateHash": "7990993244594100829"
+              "templateHash": "14910515012208756949"
             }
           },
           "parameters": {
@@ -818,8 +923,23 @@
             "azureAdClientId": {
               "type": "string"
             },
-            "azureAdDomain": {
-              "type": "string"
+            "azureAdAudience": {
+              "type": "string",
+              "metadata": {
+                "description": "API app audience (e.g. api://<api-client-id>) used to validate access tokens."
+              }
+            },
+            "graphTenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Entra tenant used by Microsoft Graph for staff provisioning."
+              }
+            },
+            "graphApiClientAppId": {
+              "type": "string",
+              "metadata": {
+                "description": "Application (client) ID of the API app registration, used to resolve app roles in Graph."
+              }
             },
             "acsEndpoint": {
               "type": "string"
@@ -827,15 +947,83 @@
             "acsSenderAddress": {
               "type": "string"
             },
-            "appAllowedOrigins": {
-              "type": "string"
+            "allowedOrigins": {
+              "type": "array",
+              "metadata": {
+                "description": "Public origin(s) allowed by CORS and used as the frontend base URL (the Static Web App URL)."
+              }
             },
             "tags": {
               "type": "object"
             }
           },
           "variables": {
-            "sqlConnectionString": "[format('Server=tcp:{0},1433;Database={1};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;', parameters('sqlServerFqdn'), parameters('sqlDatabaseName'))]"
+            "copy": [
+              {
+                "name": "originEnv",
+                "count": "[length(parameters('allowedOrigins'))]",
+                "input": {
+                  "name": "[format('App__AllowedOrigins__{0}', copyIndex('originEnv'))]",
+                  "value": "[parameters('allowedOrigins')[copyIndex('originEnv')]]"
+                }
+              }
+            ],
+            "sqlConnectionString": "[format('Server=tcp:{0},1433;Database={1};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;', parameters('sqlServerFqdn'), parameters('sqlDatabaseName'))]",
+            "frontendBaseUrl": "[if(greater(length(parameters('allowedOrigins')), 0), parameters('allowedOrigins')[0], 'https://localhost')]",
+            "baseEnv": [
+              {
+                "name": "ASPNETCORE_ENVIRONMENT",
+                "value": "[parameters('aspnetcoreEnvironment')]"
+              },
+              {
+                "name": "ConnectionStrings__Default",
+                "value": "[variables('sqlConnectionString')]"
+              },
+              {
+                "name": "ApplicationInsights__ConnectionString",
+                "value": "[parameters('appInsightsConnectionString')]"
+              },
+              {
+                "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                "value": "[parameters('appInsightsConnectionString')]"
+              },
+              {
+                "name": "AzureAd__Instance",
+                "value": "[parameters('azureAdInstance')]"
+              },
+              {
+                "name": "AzureAd__TenantId",
+                "value": "[parameters('azureAdTenantId')]"
+              },
+              {
+                "name": "AzureAd__ClientId",
+                "value": "[parameters('azureAdClientId')]"
+              },
+              {
+                "name": "AzureAd__Audience",
+                "value": "[parameters('azureAdAudience')]"
+              },
+              {
+                "name": "Graph__TenantId",
+                "value": "[parameters('graphTenantId')]"
+              },
+              {
+                "name": "Graph__ApiClientAppId",
+                "value": "[parameters('graphApiClientAppId')]"
+              },
+              {
+                "name": "Acs__Endpoint",
+                "value": "[parameters('acsEndpoint')]"
+              },
+              {
+                "name": "Acs__SenderAddress",
+                "value": "[parameters('acsSenderAddress')]"
+              },
+              {
+                "name": "App__FrontendBaseUrl",
+                "value": "[variables('frontendBaseUrl')]"
+              }
+            ]
           },
           "resources": [
             {
@@ -869,46 +1057,29 @@
                     {
                       "name": "antiguoaserradero",
                       "image": "[parameters('image')]",
-                      "env": [
+                      "env": "[concat(variables('baseEnv'), variables('originEnv'))]",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "probes": [
                         {
-                          "name": "ASPNETCORE_ENVIRONMENT",
-                          "value": "[parameters('aspnetcoreEnvironment')]"
+                          "type": "Liveness",
+                          "httpGet": {
+                            "path": "/health",
+                            "port": 8080
+                          },
+                          "initialDelaySeconds": 10,
+                          "periodSeconds": 30
                         },
                         {
-                          "name": "ConnectionStrings__DefaultConnection",
-                          "value": "[variables('sqlConnectionString')]"
-                        },
-                        {
-                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                          "value": "[parameters('appInsightsConnectionString')]"
-                        },
-                        {
-                          "name": "AzureAd__Instance",
-                          "value": "[parameters('azureAdInstance')]"
-                        },
-                        {
-                          "name": "AzureAd__TenantId",
-                          "value": "[parameters('azureAdTenantId')]"
-                        },
-                        {
-                          "name": "AzureAd__ClientId",
-                          "value": "[parameters('azureAdClientId')]"
-                        },
-                        {
-                          "name": "AzureAd__Domain",
-                          "value": "[parameters('azureAdDomain')]"
-                        },
-                        {
-                          "name": "Acs__Endpoint",
-                          "value": "[parameters('acsEndpoint')]"
-                        },
-                        {
-                          "name": "Acs__SenderAddress",
-                          "value": "[parameters('acsSenderAddress')]"
-                        },
-                        {
-                          "name": "App__AllowedOrigins",
-                          "value": "[parameters('appAllowedOrigins')]"
+                          "type": "Readiness",
+                          "httpGet": {
+                            "path": "/health",
+                            "port": 8080
+                          },
+                          "initialDelaySeconds": 5,
+                          "periodSeconds": 15
                         }
                       ]
                     }
@@ -952,7 +1123,8 @@
         "[resourceId('Microsoft.Resources/deployments', 'appInsights')]",
         "[resourceId('Microsoft.Resources/deployments', 'communication')]",
         "[resourceId('Microsoft.Resources/deployments', 'containerEnvironment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'sql')]"
+        "[resourceId('Microsoft.Resources/deployments', 'sql')]",
+        "[resourceId('Microsoft.Resources/deployments', 'staticWebApp')]"
       ]
     },
     {
@@ -1083,6 +1255,14 @@
     "acsSenderUsername": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'communication'), '2025-04-01').outputs.senderUsername.value]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'staticWebApp'), '2025-04-01').outputs.name.value]"
+    },
+    "staticWebAppHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'staticWebApp'), '2025-04-01').outputs.defaultHostname.value]"
     }
   }
 }

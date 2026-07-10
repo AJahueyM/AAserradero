@@ -41,11 +41,20 @@ param azureAdTenantId string = subscription().tenantId
 @description('Application/client ID used by the app authentication configuration.')
 param azureAdClientId string = '00000000-0000-0000-0000-000000000000'
 
-@description('Primary Microsoft Entra domain used by the app authentication configuration.')
-param azureAdDomain string = 'contoso.onmicrosoft.com'
+@description('API app audience (api://<api-client-id>) used to validate access tokens.')
+param azureAdAudience string = 'api://00000000-0000-0000-0000-000000000000'
 
-@description('Allowed CORS/origin list consumed by the application, for example https://www.example.com.')
-param appAllowedOrigins string = 'https://example.com'
+@description('Microsoft Entra tenant used by Microsoft Graph for staff provisioning.')
+param graphTenantId string = subscription().tenantId
+
+@description('Application (client) ID of the API app registration, used to resolve Microsoft Graph app roles.')
+param graphApiClientAppId string = '00000000-0000-0000-0000-000000000000'
+
+@description('Region for the Static Web App (Free SKU supports a limited set, e.g. eastus2, westus2, centralus, westeurope, eastasia).')
+param staticWebAppLocation string = 'eastus2'
+
+@description('Optional additional CORS origins. The Static Web App URL is always included automatically.')
+param additionalAllowedOrigins array = []
 
 @description('ACS Email sender address used by the app. Update this after the Azure-managed email domain is provisioned if needed.')
 param acsSenderAddress string = 'DoNotReply@<azure-managed-domain>'
@@ -69,6 +78,7 @@ var sqlServerName = take('${resourceBaseName}-sql', 63)
 var sqlDatabaseName = 'antiguoaserradero'
 var communicationServiceName = take('${resourceBaseName}-acs', 63)
 var emailServiceName = take('${resourceBaseName}-email', 63)
+var staticWebAppName = take('${resourceBaseName}-swa', 60)
 
 module logAnalytics 'modules/logAnalytics.bicep' = {
   name: 'logAnalytics'
@@ -132,6 +142,15 @@ module communication 'modules/communication.bicep' = {
   }
 }
 
+module staticWebApp 'modules/staticWebApp.bicep' = {
+  name: 'staticWebApp'
+  params: {
+    name: staticWebAppName
+    location: staticWebAppLocation
+    tags: tags
+  }
+}
+
 module containerApp 'modules/containerApp.bicep' = {
   name: 'containerApp'
   params: {
@@ -147,10 +166,12 @@ module containerApp 'modules/containerApp.bicep' = {
     azureAdInstance: azureAdInstance
     azureAdTenantId: azureAdTenantId
     azureAdClientId: azureAdClientId
-    azureAdDomain: azureAdDomain
+    azureAdAudience: azureAdAudience
+    graphTenantId: graphTenantId
+    graphApiClientAppId: graphApiClientAppId
     acsEndpoint: communication.outputs.communicationServiceEndpoint
     acsSenderAddress: acsSenderAddress
-    appAllowedOrigins: appAllowedOrigins
+    allowedOrigins: concat([ 'https://${staticWebApp.outputs.defaultHostname}' ], additionalAllowedOrigins)
     tags: tags
   }
 }
@@ -175,3 +196,5 @@ output acsEndpoint string = communication.outputs.communicationServiceEndpoint
 output acsEmailServiceName string = communication.outputs.emailServiceName
 output acsEmailDomainName string = communication.outputs.emailDomainName
 output acsSenderUsername string = communication.outputs.senderUsername
+output staticWebAppName string = staticWebApp.outputs.name
+output staticWebAppHostname string = staticWebApp.outputs.defaultHostname

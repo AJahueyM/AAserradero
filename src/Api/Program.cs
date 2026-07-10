@@ -90,6 +90,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.Events ??= new JwtBearerEvents();
+
+    // Browser EventSource cannot send an Authorization header, so the SSE endpoint receives the
+    // token as an access_token query-string parameter. Read it only for that path.
+    var existingMessageReceived = options.Events.OnMessageReceived;
+    options.Events.OnMessageReceived = async context =>
+    {
+        if (existingMessageReceived is not null)
+        {
+            await existingMessageReceived(context);
+        }
+
+        if (string.IsNullOrEmpty(context.Token))
+        {
+            var accessToken = context.Request.Query["access_token"];
+            if (!string.IsNullOrEmpty(accessToken) &&
+                context.HttpContext.Request.Path.StartsWithSegments("/api/events"))
+            {
+                context.Token = accessToken;
+            }
+        }
+    };
+
     var existingChallenge = options.Events.OnChallenge;
     options.Events.OnChallenge = async context =>
     {

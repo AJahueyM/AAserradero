@@ -32,9 +32,10 @@ export function useServerEvents<TPayload = unknown>({
       eventSource.onopen = () => setStatus('open');
       eventSource.onerror = () => setStatus('error');
       eventSource.onmessage = (event) => {
+        const envelope = parseEventEnvelope(event.data);
         const message: ServerEventMessage<TPayload> = {
-          type: event.type,
-          payload: parseEventPayload<TPayload>(event.data),
+          type: envelope.type ?? event.type,
+          payload: envelope.payload as TPayload,
           receivedAt: new Date(),
         };
         setLastMessage(message);
@@ -49,10 +50,15 @@ export function useServerEvents<TPayload = unknown>({
   }, [enabled, onMessage]);
   return useMemo(() => ({ status, lastMessage }), [lastMessage, status]);
 }
-function parseEventPayload<TPayload>(data: string): TPayload {
+function parseEventEnvelope(data: string): { type?: string; payload: unknown } {
   try {
-    return JSON.parse(data) as TPayload;
+    const parsed: unknown = JSON.parse(data);
+    if (parsed && typeof parsed === 'object' && 'type' in parsed) {
+      const envelope = parsed as { type?: string; payload?: unknown };
+      return { type: envelope.type, payload: envelope.payload };
+    }
+    return { payload: parsed };
   } catch {
-    return data as TPayload;
+    return { payload: data };
   }
 }

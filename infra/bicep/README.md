@@ -8,7 +8,8 @@ Bicep templates for a low-traffic ASP.NET Core + React container on Azure Contai
 - `appInsights.bicep`: workspace-based Application Insights.
 - `acr.bicep`: Basic Azure Container Registry with admin user disabled.
 - `containerEnvironment.bicep`: consumption Container Apps environment connected to Log Analytics.
-- `containerApp.bicep`: system-assigned managed identity, external HTTPS ingress on port 8080, managed-identity ACR pull, app configuration env vars, and HTTP scale-to-zero. `maxReplicas` is intentionally capped at 1 so the in-process SSE broadcaster remains correct.
+- `containerApp.bicep`: system-assigned managed identity, external HTTPS ingress on port 8080, managed-identity ACR pull, `/health` probes, and HTTP scale-to-zero. `maxReplicas` is intentionally capped at 1 so the in-process SSE broadcaster remains correct. Environment variables use the app's exact configuration keys (`ConnectionStrings__Default`, `AzureAd__Instance/TenantId/ClientId/Audience`, `Graph__TenantId/ApiClientAppId`, `Acs__Endpoint/SenderAddress`, `ApplicationInsights__ConnectionString`, and CORS origins as `App__AllowedOrigins__0..n`).
+- `staticWebApp.bicep`: Azure Static Web App (Free SKU) that hosts the React SPA. Hosting the SPA here (instead of the scale-to-zero container) keeps the UI instantly available while the API still scales to zero. Its URL is automatically added to the API's CORS allow-list.
 - `sql.bicep`: Microsoft Entra-only Azure SQL logical server, serverless General Purpose database with 60-minute auto-pause, 0.5 min vCore, ~2 GiB max size, LRS backups, and no zone redundancy.
 - `communication.bicep`: Azure Communication Services, Email Communication Service, Azure-managed domain, and default sender. Domain linking may need a one-time CLI/portal step because the linked-domain child resource is not available in the installed Bicep type set.
 - `roleAssignments.bicep`: `AcrPull` for the Container App identity and `Communication and Email Service Owner` for ACS email managed-identity sending.
@@ -36,15 +37,25 @@ az deployment group create `
   --parameters infra\bicep\main.bicepparam
 ```
 
-Required parameters:
+Required / key parameters:
 
 - `aadAdminLogin`: Microsoft Entra SQL admin login/display name.
 - `aadAdminObjectId`: object ID for that admin.
 - `aadAdminPrincipalType`: `User`, `Group`, or `Application`.
-- `azureAdTenantId`, `azureAdClientId`, `azureAdDomain`: app auth configuration.
+- `azureAdInstance`, `azureAdTenantId`, `azureAdClientId`, `azureAdAudience`: API token-validation configuration (audience is `api://<api-client-id>`).
+- `graphTenantId`, `graphApiClientAppId`: Microsoft Graph settings for staff provisioning (the API app registration's tenant and client ID).
 - `containerImage`: update after the first image is pushed to ACR.
-- `appAllowedOrigins`: allowed application origins.
+- `staticWebAppLocation`: region for the Static Web App Free SKU (e.g. `eastus2`).
+- `additionalAllowedOrigins`: optional extra CORS origins (the Static Web App URL is always included automatically).
 - `acsSenderAddress`: sender address for the app to use after the Email domain/sender is provisioned.
+
+## Frontend hosting (Azure Static Web Apps)
+
+The React SPA is deployed to the Static Web App (Free tier) by the `Deploy` GitHub Actions
+workflow, built with production `VITE_*` values (API base URL = the Container App FQDN, MSAL
+redirect URI = the Static Web App URL). The Static Web App URL is passed to the Container App as
+an allowed CORS origin and as `App__FrontendBaseUrl`. Register the Static Web App URL as a redirect
+URI on the SPA app registration in Microsoft Entra (see `infra/entra`).
 
 ## Post-deploy SQL access
 

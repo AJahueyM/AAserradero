@@ -1,0 +1,19 @@
+# Build context excludes: keeps the API image small and the SPA out of it.
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.vite
+.git
+.github
+.vs
+.idea
+tests
+Requirements
+infra
+src/Web
+**/*.user
+**/TestResults
+**/.env
+**/.env.*
+!**/.env.example

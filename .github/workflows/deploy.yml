@@ -1,0 +1,108 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# OIDC federated login to Azure — no stored cloud secrets.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  IMAGE_NAME: antiguoaserradero
+
+jobs:
+  infrastructure:
+    name: Build image, deploy infra
+    runs-on: ubuntu-latest
+    outputs:
+      apiFqdn: ${{ steps.outputs.outputs.apiFqdn }}
+      swaName: ${{ steps.outputs.outputs.swaName }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build & push API image (ACR Tasks)
+        run: |
+          az acr build \
+            --registry "${{ vars.ACR_NAME }}" \
+            --image "${IMAGE_NAME}:${{ github.sha }}" \
+            --image "${IMAGE_NAME}:latest" \
+            .
+
+      - name: Deploy infrastructure (Bicep)
+        run: |
+          az deployment group create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name main \
+            --template-file infra/bicep/main.bicep \
+            --parameters infra/bicep/main.bicepparam \
+            --parameters containerImage="${{ vars.ACR_NAME }}.azurecr.io/${IMAGE_NAME}:${{ github.sha }}"
+
+      - name: Capture deployment outputs
+        id: outputs
+        run: |
+          rg="${{ vars.AZURE_RESOURCE_GROUP }}"
+          apiFqdn=$(az deployment group show -g "$rg" -n main --query properties.outputs.containerAppFqdn.value -o tsv)
+          swaName=$(az deployment group show -g "$rg" -n main --query properties.outputs.staticWebAppName.value -o tsv)
+          echo "apiFqdn=$apiFqdn" >> "$GITHUB_OUTPUT"
+          echo "swaName=$swaName" >> "$GITHUB_OUTPUT"
+
+  frontend:
+    name: Build & deploy SPA (Static Web Apps)
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/Web/package-lock.json
+
+      - name: Install & build SPA
+        working-directory: src/Web
+        env:
+          VITE_API_BASE_URL: https://${{ needs.infrastructure.outputs.apiFqdn }}
+          VITE_AAD_CLIENT_ID: ${{ vars.VITE_AAD_CLIENT_ID }}
+          VITE_AAD_AUTHORITY: ${{ vars.VITE_AAD_AUTHORITY }}
+          VITE_AAD_REDIRECT_URI: ${{ vars.VITE_AAD_REDIRECT_URI }}
+          VITE_API_SCOPE: ${{ vars.VITE_API_SCOPE }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Static Web Apps deployment token
+        id: swa
+        run: |
+          token=$(az staticwebapp secrets list \
+            --name "${{ needs.infrastructure.outputs.swaName }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query properties.apiKey -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          action: upload
+          app_location: src/Web/dist
+          skip_app_build: true
+          skip_api_build: true

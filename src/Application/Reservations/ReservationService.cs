@@ -120,6 +120,8 @@ public sealed class ReservationService : IReservationService
         var lodgingConcept = await GetActiveConceptAsync(BillingSeedCodes.LodgingConcept, cancellationToken);
         var defaultPaymentMethod = await GetActivePaymentMethodAsync(BillingSeedCodes.DefaultPaymentMethod, cancellationToken);
         var defaultPaymentLocation = await GetActivePaymentLocationAsync(BillingSeedCodes.DefaultPaymentLocation, cancellationToken);
+        var area = await _dbContext.Areas.AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == room.AreaId, cancellationToken);
         var now = DateTime.UtcNow;
         var reservation = new Reservation
         {
@@ -129,8 +131,8 @@ public sealed class ReservationService : IReservationService
             Room = room,
             EntryDate = entryDate,
             ExitDate = exitDate,
-            CheckInTime = TimeOnly.MinValue,
-            CheckOutTime = TimeOnly.MinValue,
+            CheckInTime = area?.CheckInTime ?? TimeOnly.MinValue,
+            CheckOutTime = area?.CheckOutTime ?? TimeOnly.MinValue,
             Adults = request.Adults,
             Children = request.Children,
             Infants = request.Infants,
