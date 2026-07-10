@@ -1,4 +1,5 @@
 using AntiguoAserradero.Application;
+using AntiguoAserradero.Application.Abstractions;
 using AntiguoAserradero.Application.LiveUpdates;
 using AntiguoAserradero.Infrastructure.LiveUpdates;
 using AntiguoAserradero.Infrastructure.Persistence;
@@ -17,6 +18,8 @@ public static class DependencyInjection
             var databaseOptions = serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             options.UseSqlServer(SqlConnectionFactory.Create(databaseOptions.Default), sql => sql.EnableRetryOnFailure());
         });
+
+        services.AddScoped<IApplicationDbContext>(serviceProvider => serviceProvider.GetRequiredService<AntiguoAserraderoDbContext>());
 
         services.AddSingleton<ILiveUpdateBroadcaster, InMemoryLiveUpdateBroadcaster>();
         services.AddSingleton<ILiveUpdatePublisher>(serviceProvider => serviceProvider.GetRequiredService<ILiveUpdateBroadcaster>());

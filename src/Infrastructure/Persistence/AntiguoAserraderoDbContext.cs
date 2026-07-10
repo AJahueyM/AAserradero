@@ -1,10 +1,11 @@
+using AntiguoAserradero.Application.Abstractions;
 using AntiguoAserradero.Domain.Entities;
 using AntiguoAserradero.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace AntiguoAserradero.Infrastructure.Persistence;
 
-public sealed class AntiguoAserraderoDbContext : DbContext
+public sealed class AntiguoAserraderoDbContext : DbContext, IApplicationDbContext
 {
     public AntiguoAserraderoDbContext(DbContextOptions<AntiguoAserraderoDbContext> options)
         : base(options)

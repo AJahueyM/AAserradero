@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -17,7 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Application services are tested against the real DbContext using the EF Core
+         InMemory provider (the DbContext implements IApplicationDbContext). -->
     <ProjectReference Include="..\..\src\Application\AntiguoAserradero.Application.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\AntiguoAserradero.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
