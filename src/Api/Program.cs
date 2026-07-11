@@ -100,6 +100,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
 {
+    // Keep JWT claim types verbatim (e.g. "roles", "scp", "oid"). ASP.NET Core's default inbound
+    // claim mapping rewrites short names to legacy WS-* URIs — notably "roles" -> ClaimTypes.Role —
+    // which breaks the RequireClaim("roles", ...) authorization policies below. CurrentUserAccessor
+    // also reads the raw "oid"/"name"/"roles" claims, so mapping must stay off for it to work.
+    options.MapInboundClaims = false;
+
     options.Events ??= new JwtBearerEvents();
 
     // Browser EventSource cannot send an Authorization header, so the SSE endpoint receives the
