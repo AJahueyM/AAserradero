@@ -10,7 +10,6 @@ import {
   Toolbar,
   Typography,
   useMediaQuery,
-  useTheme,
 } from '@mui/material';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +24,7 @@ export function AppShell() {
   const { t } = useTranslation();
   const { signOut } = useAuth();
   const currentUser = useCurrentUser();
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const isDesktop = useMediaQuery('(min-width:1080px)');
   const [mobileOpen, setMobileOpen] = useState(false);
   const displayName = currentUser.data?.displayName ?? '';
   return (
@@ -72,6 +70,7 @@ export function AppShell() {
       <AppNav
         drawerWidth={drawerWidth}
         mobileOpen={mobileOpen}
+        desktopOpen={isDesktop}
         onMobileClose={() => setMobileOpen(false)}
       />
       <Box

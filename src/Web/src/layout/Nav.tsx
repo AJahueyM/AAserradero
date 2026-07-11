@@ -17,9 +17,10 @@ import { getVisibleFeatureRoutes } from '../features/routes';
 interface AppNavProps {
   drawerWidth: number;
   mobileOpen: boolean;
+  desktopOpen: boolean;
   onMobileClose: () => void;
 }
-export function AppNav({ drawerWidth, mobileOpen, onMobileClose }: AppNavProps) {
+export function AppNav({ drawerWidth, mobileOpen, desktopOpen, onMobileClose }: AppNavProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const currentUser = useCurrentUser();
@@ -53,21 +54,21 @@ export function AppNav({ drawerWidth, mobileOpen, onMobileClose }: AppNavProps) 
     </Box>
   );
   return (
-    <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+    <Box component="nav" sx={{ width: desktopOpen ? drawerWidth : 0, flexShrink: 0 }}>
       <Drawer
         variant="temporary"
         open={mobileOpen}
         onClose={onMobileClose}
         ModalProps={{ keepMounted: true }}
-        sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { width: drawerWidth } }}
+        sx={{ display: desktopOpen ? 'none' : 'block', '& .MuiDrawer-paper': { width: drawerWidth } }}
       >
         {content}
       </Drawer>
       <Drawer
         variant="permanent"
-        open
+        open={desktopOpen}
         sx={{
-          display: { xs: 'none', md: 'block' },
+          display: desktopOpen ? 'block' : 'none',
           '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' },
         }}
       >
