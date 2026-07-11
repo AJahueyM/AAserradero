@@ -3,6 +3,7 @@ import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import logoUrl from '../assets/logo.png';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -15,17 +16,30 @@ export function LoginPage() {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
-        bgcolor: 'background.default',
         p: 2,
+        background: (theme) =>
+          `radial-gradient(1200px 600px at 50% -15%, ${theme.palette.primary.dark}26, transparent 60%),` +
+          ` linear-gradient(160deg, ${theme.palette.background.default} 0%, #eef1e5 100%)`,
       }}
     >
-      <Paper elevation={4} sx={{ width: '100%', maxWidth: 480, p: { xs: 3, sm: 5 } }}>
+      <Paper
+        elevation={6}
+        sx={{
+          width: '100%',
+          maxWidth: 460,
+          p: { xs: 3, sm: 5 },
+          borderTop: (theme) => `6px solid ${theme.palette.primary.main}`,
+        }}
+      >
         <Stack spacing={3} sx={{ alignItems: 'stretch' }}>
-          <Box>
-            <Typography component="p" variant="overline" color="primary">
-              {t('app.name')}
-            </Typography>
-            <Typography component="h1" variant="h4">
+          <Box
+            component="img"
+            src={logoUrl}
+            alt={t('app.name')}
+            sx={{ width: '100%', maxWidth: 300, height: 'auto', alignSelf: 'center' }}
+          />
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography component="h1" variant="h5">
               {t('auth.signInTitle')}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>

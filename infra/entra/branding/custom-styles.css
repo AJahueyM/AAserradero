@@ -1,0 +1,165 @@
+/* =============================================================================
+   Antiguo Aserradero — Microsoft Entra sign-in page custom CSS
+   Themed to match the web app (MUI theme).
+
+   Palette
+     Deep green  #273c18    Main green #395723    Light green #60784f
+     Gold        #fbd86c    Gold deep  #af974b     Gold light  #fbdf89
+     Cream bg    #f7f6f1    Paper      #ffffff     Text        #1f1f1f
+
+   How to apply
+     Entra admin center → Company Branding → (edit locale) → Sign-in form →
+     "Custom CSS" → upload this file → Review + Save.
+     Or via Graph:  PUT /organization/{id}/branding/localizations/0/customCSS
+                    (Content-Type: text/css)
+
+   Constraints: .css only, ≤ 25 KB. Custom CSS is only available on Microsoft
+   Entra ID tenants created on/before 2026-01-05.
+   ============================================================================= */
+
+/* ---- Page & links --------------------------------------------------------- */
+body {
+  font-family: 'Segoe UI', 'Inter', Roboto, Arial, sans-serif !important;
+  color: #1f1f1f;
+  background-color: #273c18 !important;
+  background-image: linear-gradient(160deg, #273c18 0%, #395723 100%) !important;
+}
+
+a,
+a:link,
+.ext-link {
+  color: #395723 !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+a:hover,
+.ext-link:hover {
+  color: #273c18 !important;
+  text-decoration: underline;
+}
+a:focus,
+.ext-link:focus {
+  color: #273c18 !important;
+  outline: 2px solid #fbd86c;
+  outline-offset: 2px;
+}
+a:active,
+.ext-link:active {
+  color: #60784f !important;
+}
+
+/* ---- Full-screen layout / background containers --------------------------- */
+.ext-middle,
+.ext-vertical-split-main-section {
+  background-color: transparent;
+}
+
+/* ---- Sign-in box ---------------------------------------------------------- */
+.ext-sign-in-box {
+  background-color: #ffffff !important;
+  border-radius: 12px !important;
+  border-top: 6px solid #395723 !important;
+  box-shadow: 0 10px 30px rgba(39, 60, 24, 0.35) !important;
+}
+
+.ext-header {
+  background-color: #ffffff;
+}
+
+/* ---- Titles & text -------------------------------------------------------- */
+.ext-title {
+  color: #273c18 !important;
+  font-weight: 700 !important;
+}
+.ext-subtitle {
+  color: #4a4a4a !important;
+}
+.ext-boilerplate-text {
+  color: #5a5a5a !important;
+}
+
+/* ---- Primary button (green, flat, rounded — matches the app) -------------- */
+.ext-button.ext-primary {
+  background-color: #395723 !important;
+  border-color: #395723 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  text-transform: none !important;
+}
+.ext-button.ext-primary:hover {
+  background-color: #273c18 !important;
+  border-color: #273c18 !important;
+}
+.ext-button.ext-primary:focus {
+  background-color: #273c18 !important;
+  border-color: #273c18 !important;
+  outline: 2px solid #fbd86c !important;
+  outline-offset: 2px;
+}
+.ext-button.ext-primary:focus:hover,
+.ext-button.ext-primary:active {
+  background-color: #1e2f13 !important;
+  border-color: #1e2f13 !important;
+}
+
+/* ---- Secondary button (outlined green) ------------------------------------ */
+.ext-button.ext-secondary {
+  background-color: #ffffff !important;
+  border: 1px solid #60784f !important;
+  color: #395723 !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  text-transform: none !important;
+}
+.ext-button.ext-secondary:hover {
+  background-color: #f1f4ec !important;
+  border-color: #395723 !important;
+}
+.ext-button.ext-secondary:focus,
+.ext-button.ext-secondary:focus:hover {
+  outline: 2px solid #fbd86c !important;
+  outline-offset: 2px;
+  border-color: #395723 !important;
+}
+.ext-button.ext-secondary:active {
+  background-color: #e7ece0 !important;
+}
+
+/* ---- Text inputs ---------------------------------------------------------- */
+.ext-input.ext-text-box {
+  border-radius: 8px !important;
+  border: 1px solid #c9c9c1 !important;
+  background-color: #ffffff !important;
+}
+.ext-input.ext-text-box:hover {
+  border-color: #60784f !important;
+}
+.ext-input.ext-text-box:focus,
+.ext-input.ext-text-box:focus:hover {
+  border-color: #395723 !important;
+  box-shadow: 0 0 0 2px rgba(57, 87, 35, 0.25) !important;
+}
+.ext-input.ext-text-box.ext-has-error {
+  border-color: #b3261e !important;
+}
+
+/* ---- Errors --------------------------------------------------------------- */
+.ext-error {
+  color: #b3261e !important;
+}
+
+/* ---- Sign-in options / federated credential box --------------------------- */
+.ext-promoted-fed-cred-box {
+  border-radius: 10px !important;
+  border: 1px solid #e7ece0 !important;
+}
+
+/* ---- Footer --------------------------------------------------------------- */
+.ext-footer {
+  background-color: rgba(39, 60, 24, 0.04);
+}
+.ext-footer-item,
+.ext-footer-links a {
+  color: #4a4a4a !important;
+}

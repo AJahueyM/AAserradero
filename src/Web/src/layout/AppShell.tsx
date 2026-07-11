@@ -18,6 +18,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { useCurrentUser } from '../auth/useCurrentUser';
 import { AppNav } from './Nav';
+import logoUrl from '../assets/logo.png';
 
 const drawerWidth = 280;
 export function AppShell() {
@@ -49,9 +50,13 @@ export function AppShell() {
               <MenuIcon />
             </IconButton>
           ) : null}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            {t('app.name')}
-          </Typography>
+          <Box
+            component="img"
+            src={logoUrl}
+            alt={t('app.name')}
+            sx={{ height: 40, width: 'auto', display: 'block' }}
+          />
+          <Box sx={{ flexGrow: 1 }} />
           <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
             {displayName ? (
               <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
