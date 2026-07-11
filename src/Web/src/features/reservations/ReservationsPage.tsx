@@ -97,14 +97,15 @@ export default function ReservationsPage() {
   return <Stack spacing={3}>
     <Stack spacing={1}><Typography variant="h4" component="h1">{t('reservations.title')}</Typography><Typography color="text.secondary">{t('reservations.subtitle')}</Typography></Stack>
     {queryError ? <Alert severity="error">{apiMessage(queryError, t('reservations.unknownError'))}</Alert> : null}
-    <Paper sx={{ p: 2 }}><Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
-      <IconButton aria-label={t('reservations.previousMonth')} onClick={() => setMonth(subMonths(month, 1))}><ChevronLeftIcon /></IconButton>
-      <DatePicker label={t('reservations.monthLabel')} value={month} views={['year', 'month']} onChange={(value) => value && setMonth(startOfMonth(value))} />
-      <IconButton aria-label={t('reservations.nextMonth')} onClick={() => setMonth(addMonths(month, 1))}><ChevronRightIcon /></IconButton>
-      <Button variant="outlined" onClick={() => setMonth(startOfMonth(new Date()))}>{t('reservations.today')}</Button>
-      <Box sx={{ flexGrow: 1 }} />
-      <TextField label={t('reservations.searchLabel')} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }} helperText={t('reservations.searchHint')} fullWidth />
-      <Button variant="contained" onClick={handleSearch} disabled={searchMutation.isPending || !searchTerm.trim()}>{t('reservations.searchButton')}</Button>
+    <Paper sx={{ p: 2 }}><Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
+        <IconButton aria-label={t('reservations.previousMonth')} onClick={() => setMonth(subMonths(month, 1))}><ChevronLeftIcon /></IconButton>
+        <DatePicker label={t('reservations.monthLabel')} value={month} views={['year', 'month']} onChange={(value) => value && setMonth(startOfMonth(value))} slotProps={{ textField: { size: 'small', sx: { width: 170 } } }} />
+        <IconButton aria-label={t('reservations.nextMonth')} onClick={() => setMonth(addMonths(month, 1))}><ChevronRightIcon /></IconButton>
+        <Button variant="outlined" onClick={() => setMonth(startOfMonth(new Date()))} sx={{ whiteSpace: 'nowrap' }}>{t('reservations.today')}</Button>
+      </Stack>
+      <TextField label={t('reservations.searchLabel')} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }} helperText={t('reservations.searchHint')} size="small" sx={{ flex: '1 1 320px', minWidth: 240 }} />
+      <Button variant="contained" onClick={handleSearch} disabled={searchMutation.isPending || !searchTerm.trim()} sx={{ whiteSpace: 'nowrap' }}>{t('reservations.searchButton')}</Button>
       {canManage && <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ mode: 'create' })} sx={{ whiteSpace: 'nowrap', flexShrink: 0, px: 2.25 }}>{t('reservations.newReservation')}</Button>}
     </Stack></Paper>
     {calendarQuery.isFetching && <LinearProgress aria-label={t('reservations.calendarLoading')} />}
