@@ -57,6 +57,24 @@ redirect URI = the Static Web App URL). The Static Web App URL is passed to the 
 an allowed CORS origin and as `App__FrontendBaseUrl`. Register the Static Web App URL as a redirect
 URI on the SPA app registration in Microsoft Entra (see `infra/entra`).
 
+## CI/CD deployment (GitHub Actions)
+
+The `Deploy` workflow (`.github/workflows/deploy.yml`) logs in to Azure via OIDC (no stored
+secrets — see `infra/entra` section 7 for the CI/CD app registration) and runs a
+**subscription-scoped** deployment:
+
+```
+az deployment sub create --location westus2 --name aa-dev \
+  --template-file infra/bicep/main.sub.bicep \
+  --parameters infra/bicep/params/dev.bicepparam \
+  --parameters initialDeployment=false containerImage=<acr>/antiguoaserradero:<sha>
+```
+
+`main.sub.bicep` creates/updates the resource group and all resources, so the CI/CD service
+principal is granted **Contributor + User Access Administrator** at subscription scope. Deployment
+outputs (`containerAppFqdn`, `staticWebAppName`) are read back with `az deployment sub show -n aa-dev`.
+The required GitHub secrets/variables are listed in `infra/entra/README.md`.
+
 ## Post-deploy SQL access
 
 The Container App uses a system-assigned managed identity and a passwordless connection string:

@@ -40,19 +40,19 @@ jobs:
 
       - name: Deploy infrastructure (Bicep)
         run: |
-          az deployment group create \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name main \
-            --template-file infra/bicep/main.bicep \
-            --parameters infra/bicep/main.bicepparam \
-            --parameters containerImage="${{ vars.ACR_NAME }}.azurecr.io/${IMAGE_NAME}:${{ github.sha }}"
+          az deployment sub create \
+            --location westus2 \
+            --name aa-dev \
+            --template-file infra/bicep/main.sub.bicep \
+            --parameters infra/bicep/params/dev.bicepparam \
+            --parameters initialDeployment=false \
+              containerImage="${{ vars.ACR_NAME }}.azurecr.io/${IMAGE_NAME}:${{ github.sha }}"
 
       - name: Capture deployment outputs
         id: outputs
         run: |
-          rg="${{ vars.AZURE_RESOURCE_GROUP }}"
-          apiFqdn=$(az deployment group show -g "$rg" -n main --query properties.outputs.containerAppFqdn.value -o tsv)
-          swaName=$(az deployment group show -g "$rg" -n main --query properties.outputs.staticWebAppName.value -o tsv)
+          apiFqdn=$(az deployment sub show -n aa-dev --query properties.outputs.containerAppFqdn.value -o tsv)
+          swaName=$(az deployment sub show -n aa-dev --query properties.outputs.staticWebAppName.value -o tsv)
           echo "apiFqdn=$apiFqdn" >> "$GITHUB_OUTPUT"
           echo "swaName=$swaName" >> "$GITHUB_OUTPUT"
 
@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm

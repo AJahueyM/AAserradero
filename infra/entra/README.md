@@ -179,7 +179,51 @@ az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals?`
 
 ## 7. CI/CD identity
 
-Prefer federated identity credentials (OIDC) for GitHub Actions or other CI/CD. Grant deployment identities only the required Azure RBAC and Graph permissions. Do not store client secrets in repositories, pipelines, or app settings.
+The GitHub Actions **Deploy** workflow (`.github/workflows/deploy.yml`) authenticates to Azure with
+`azure/login@v2` using **OIDC federated credentials** — no client secrets are stored anywhere.
+
+A dedicated app registration **`Antiguo Aserradero CI/CD`** owns this identity (separate from the
+API/SPA apps). Provision it idempotently with:
+
+```powershell
+Set-Location C:\Users\alber\Documents\Gits\Test\infra\entra
+.\setup-cicd-oidc.ps1 `
+  -Repo 'AJahueyM/AAserradero' `
+  -SubscriptionId '<subscription-id>' `
+  -SetGitHub
+```
+
+The script creates the app + service principal, adds a federated credential for
+`repo:AJahueyM/AAserradero:ref:refs/heads/main` (issuer
+`https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange`), assigns
+**Contributor** + **User Access Administrator** at subscription scope (User Access Administrator is
+required because the Bicep deployment creates the AcrPull / ACS Email role assignments), and — with
+`-SetGitHub` — writes the repo secrets below.
+
+### GitHub repository configuration (dev)
+
+Secrets (`gh secret set`):
+
+| Secret | Value |
+|--------|-------|
+| `AZURE_CLIENT_ID` | CI/CD app appId (script output) |
+| `AZURE_TENANT_ID` | `82743923-e183-4cb1-9ce7-fff2f8fccb3d` |
+| `AZURE_SUBSCRIPTION_ID` | deployment subscription id |
+
+Variables (`gh variable set`):
+
+| Variable | Value |
+|----------|-------|
+| `ACR_NAME` | `aareservadeviiehqhtgjxqjo` |
+| `AZURE_RESOURCE_GROUP` | `rg-aareserva-dev` |
+| `VITE_AAD_CLIENT_ID` | `68e37713-c6e6-43e0-9e27-c7bd1d44aaf0` (SPA app) |
+| `VITE_AAD_AUTHORITY` | `https://login.microsoftonline.com/82743923-e183-4cb1-9ce7-fff2f8fccb3d` |
+| `VITE_AAD_REDIRECT_URI` | `https://gentle-smoke-02c1d2e1e.7.azurestaticapps.net` (dev SWA) |
+| `VITE_API_SCOPE` | `api://a1fe5dd6-eb0b-42a1-8577-7207096f2768/access_as_user` |
+
+Prefer federated identity credentials (OIDC) for CI/CD. Grant deployment identities only the
+required Azure RBAC and Graph permissions. Do not store client secrets in repositories, pipelines,
+or app settings.
 
 ## Syntax validation without tenant credentials
 
