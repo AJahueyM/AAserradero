@@ -64,24 +64,38 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
         {
             AccountEnabled = true,
             DisplayName = displayName,
-            UserPrincipalName = email,
             MailNickname = CreateMailNickname(email),
-            Identities =
-            [
-                new ObjectIdentity
-                {
-                    SignInType = "emailAddress",
-                    Issuer = string.IsNullOrWhiteSpace(_options.LocalAccountIssuer) ? _options.TenantId : _options.LocalAccountIssuer,
-                    IssuerAssignedId = email,
-                },
-            ],
-            PasswordPolicies = "DisablePasswordExpiration",
             PasswordProfile = new PasswordProfile
             {
                 Password = initialPassword,
                 ForceChangePasswordNextSignIn = true,
             },
         };
+
+        if (!string.IsNullOrWhiteSpace(_options.LocalAccountIssuer))
+        {
+            // Entra External ID (CIAM) tenant: create an email-based local account.
+            graphUser.Identities =
+            [
+                new ObjectIdentity
+                {
+                    SignInType = "emailAddress",
+                    Issuer = _options.LocalAccountIssuer,
+                    IssuerAssignedId = email,
+                },
+            ];
+            graphUser.PasswordPolicies = "DisablePasswordExpiration";
+        }
+        else
+        {
+            // Workforce tenant: create a member account with a UPN in a verified tenant domain.
+            var domain = await ResolveUserDomainAsync(cancellationToken);
+            graphUser.UserPrincipalName = BuildUserPrincipalName(email, domain);
+            if (LooksLikeEmail(email))
+            {
+                graphUser.OtherMails = [email];
+            }
+        }
 
         GraphUser created;
         try
@@ -352,5 +366,44 @@ public sealed class MicrosoftGraphStaffDirectory : IStaffDirectory
         var localPart = email.Split('@', 2)[0];
         var sanitized = new string(localPart.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(sanitized) ? "staff" : sanitized;
+    }
+
+    private static bool LooksLikeEmail(string value) =>
+        value.Contains('@', StringComparison.Ordinal) && value.Split('@', 2)[1].Contains('.', StringComparison.Ordinal);
+
+    // Builds a member-account UPN in a verified tenant domain, e.g. "jdoe@contoso.onmicrosoft.com".
+    // The user-provided value may be a bare username or an email; only its local part is used.
+    private static string BuildUserPrincipalName(string emailOrUsername, string userDomain)
+    {
+        var localPart = emailOrUsername.Contains('@', StringComparison.Ordinal)
+            ? emailOrUsername.Split('@', 2)[0]
+            : emailOrUsername;
+        var sanitized = new string(localPart.Where(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_').ToArray()).Trim('.');
+        if (string.IsNullOrWhiteSpace(sanitized))
+        {
+            sanitized = "staff";
+        }
+
+        return $"{sanitized}@{userDomain.TrimStart('@')}";
+    }
+
+    // Resolves the verified domain to use for new member-account UPNs: the configured Graph:UserDomain,
+    // otherwise the tenant's default verified domain.
+    private async Task<string> ResolveUserDomainAsync(CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(_options.UserDomain))
+        {
+            return _options.UserDomain.TrimStart('@');
+        }
+
+        var organization = await _graph.Organization.GetAsync(request =>
+        {
+            request.QueryParameters.Select = ["verifiedDomains"];
+        }, cancellationToken);
+
+        var domains = organization?.Value?.FirstOrDefault()?.VerifiedDomains;
+        var domain = domains?.FirstOrDefault(candidate => candidate.IsDefault == true) ?? domains?.FirstOrDefault();
+        return domain?.Name
+            ?? throw new InvalidOperationException("No verified domain is available for member-account creation. Set Graph:UserDomain.");
     }
 }

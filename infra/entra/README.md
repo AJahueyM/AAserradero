@@ -4,34 +4,32 @@ This folder contains the identity runbook and automation for **Antiguo Aserrader
 
 ## As-deployed reference (dev)
 
-The dev environment was provisioned live with these identifiers (safe to record — none are secrets):
+The dev environment uses the **existing workforce Entra tenant** with **member accounts**
+(username + password). Identifiers (none are secrets):
 
 | Item | Value |
 |------|-------|
-| CIAM tenant | `aareservaciam.onmicrosoft.com` — id `eed3a04c-ae86-4e2b-b179-68f68d9b1d1a` |
-| MSAL authority | `https://aareservaciam.ciamlogin.com/eed3a04c-ae86-4e2b-b179-68f68d9b1d1a` |
-| API app (audience) | `2c54506d-2105-4ad7-a6bd-c206f645b1a1` (`api://…/access_as_user`, roles `Catalog.Manage` + `Reservations.Manage`) |
-| SPA app (client) | `2a929590-b96a-4e1f-b8c8-4d87f0e4ff68` (redirect: dev SWA + `http://localhost:5173`) |
-| Provisioning app | `4616047b-edfb-4442-88f7-80b83ee95af2` — used by the backend for Microsoft Graph |
-| Sign-in user flow | `StaffSignIn` (Email + password, self-service sign-up disabled), linked to the SPA app |
+| Tenant | `albertojahueymoncadagmail.onmicrosoft.com` — id `82743923-e183-4cb1-9ce7-fff2f8fccb3d` |
+| MSAL authority | `https://login.microsoftonline.com/82743923-e183-4cb1-9ce7-fff2f8fccb3d` |
+| API app (audience) | `a1fe5dd6-eb0b-42a1-8577-7207096f2768` (`api://…/access_as_user`, roles `Catalog.Manage` + `Reservations.Manage`) |
+| SPA app (client) | `68e37713-c6e6-43e0-9e27-c7bd1d44aaf0` (redirect: dev SWA + `http://localhost:5173`) |
+| New-user UPN domain | `albertojahueymoncadagmail.onmicrosoft.com` (`Graph:UserDomain`) |
 
-### Secretless backend user provisioning (Workload Identity Federation)
+Staff created from the Admin UI become **member accounts** with a UPN in the tenant's verified
+domain (e.g. `jdoe@…onmicrosoft.com`) and an admin-set password. Sign-in uses the standard
+Microsoft-branded org login page (customizable via Entra Company Branding).
 
-The backend creates/manages staff in the CIAM tenant via Microsoft Graph **without any client secret**:
+### Secretless user provisioning (same-tenant managed identity)
 
-1. The **provisioning app** (above) in the CIAM tenant has a **federated identity credential** whose
-   `issuer` is the workforce tenant's STS (`https://login.microsoftonline.com/<workforce-tenant>/v2.0`),
-   `subject` is the **Container App system-assigned managed identity object id**, and `audience` is
-   `api://AzureADTokenExchange`.
-2. The provisioning app's service principal is granted admin-consented Graph app permissions
-   (`User.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`, `Directory.Read.All`).
-3. At runtime the backend uses `ClientAssertionCredential` (client id = provisioning app), where the
-   assertion is a managed-identity token for `api://AzureADTokenExchange`. Cross-tenant MI federation
-   is supported; same-tenant MI→app federation is not (AADSTS700236).
+Because the app and the identity tenant are the same, the backend calls Microsoft Graph directly
+with the Container App's **system-assigned managed identity** (no secret, no federation). The MI's
+service principal is granted admin-consented Graph app permissions (`User.ReadWrite.All`,
+`AppRoleAssignment.ReadWrite.All`, `Directory.Read.All`).
 
-Backend config (Container App env): `Graph__TenantId` (CIAM tenant), `Graph__ApiClientAppId` (API app),
-`Graph__ProvisioningClientId` (provisioning app), `Graph__LocalAccountIssuer` (`<tenant>.onmicrosoft.com`).
-When `Graph__ProvisioningClientId` is empty (local/same-tenant), the code falls back to `DefaultAzureCredential`.
+Backend config (Container App env): `Graph__TenantId`, `Graph__ApiClientAppId`, `Graph__UserDomain`.
+The code also supports two alternate modes (unused here): set `Graph__ProvisioningClientId` for
+secretless **cross-tenant** Graph via Workload Identity Federation, or `Graph__LocalAccountIssuer`
+to create Entra External ID (CIAM) email-based local accounts instead of member accounts.
 
 ## Prerequisites
 

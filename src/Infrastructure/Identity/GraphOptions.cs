@@ -25,4 +25,11 @@ public sealed class GraphOptions
     /// tenant's domain, e.g. <c>contoso.onmicrosoft.com</c>. Falls back to <see cref="TenantId"/>.
     /// </summary>
     public string LocalAccountIssuer { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Verified tenant domain used to build member-account UPNs in a workforce tenant, e.g.
+    /// <c>contoso.onmicrosoft.com</c>. When empty, the tenant's default verified domain is used.
+    /// Ignored when <see cref="LocalAccountIssuer"/> is set (CIAM local-account mode).
+    /// </summary>
+    public string UserDomain { get; set; } = string.Empty;
 }
